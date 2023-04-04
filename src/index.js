@@ -1,4 +1,4 @@
-import bootstrap from 'bootstrap'
-import "./style.scss";
+import 'bootstrap';
+import './style.scss';
 
 console.log('Hello World!');

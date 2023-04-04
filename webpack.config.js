@@ -29,34 +29,19 @@ const config = {
         test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
         type: 'asset',
       },
+      { test: /\.css$/, use: ['style-loader', 'css-loader', 'postcss-loader'] },
       {
-        test: /\.(scss)$/,
-        use: [{
-          // inject CSS to page
-          loader: 'style-loader'
-        }, {
-          // translates CSS into CommonJS modules
-          loader: 'css-loader'
-        }, {
-          // Run postcss actions
-          loader: 'postcss-loader',
-          options: {
-            // `postcssOptions` is needed for postcss 8.x;
-            // if you use postcss 7.x skip the key
-            postcssOptions: {
-              // postcss plugins, can be exported to postcss.config.js
-              plugins: function () {
-                return [
-                  require('autoprefixer')
-                ];
-              }
-            }
-          }
-        }, {
-          // compiles Sass to CSS
-          loader: 'sass-loader'
-        }]
-      }
+        test: /\.scss$/,
+        use: ['style-loader', 'css-loader', 'sass-loader', 'postcss-loader'],
+      },
+      {
+        test: /\.woff2?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: 'url-loader?limit=10000',
+      },
+      {
+        test: /\.(ttf|eot|svg)(\?[\s\S]+)?$/,
+        use: 'file-loader',
+      },
       // Add your rules for custom modules here
       // Learn more about loaders from https://webpack.js.org/loaders/
     ],
