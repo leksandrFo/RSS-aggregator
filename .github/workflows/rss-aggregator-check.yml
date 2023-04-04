@@ -1,0 +1,25 @@
+name: rss-aggregator-workflow
+
+on: push
+
+jobs:
+  build:
+  
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Chechout
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: npm
+          
+      - name: Make Install
+        run: make install
+        
+      - name: Run linter
+        run: make lint  
+  
