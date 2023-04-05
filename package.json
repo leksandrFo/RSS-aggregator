@@ -11,8 +11,11 @@
     "watch": "webpack --watch",
     "serve": "webpack serve"
   },
-  "keywords": [],
-  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leksandrFo/frontend-project-11"
+  },
+  "author": "Aleksandr Fokin",
   "license": "ISC",
   "devDependencies": {
     "@webpack-cli/generators": "^3.0.1",
