@@ -1,24 +1,44 @@
 import 'bootstrap';
 import './style.scss';
 import * as yup from 'yup';
+import i18next from 'i18next';
 import onChange from 'on-change';
-import render from './view.js';
+import resources from './locales/index.js';
+import render from './view/render.js';
+import renderText from './view/renderText.js';
 
 const validate = (url, links) => {
   const schema = yup.object().shape({
-    url: yup.string().url('Link must be a valid URL').trim().required()
-      .notOneOf(links, 'RSS already exists'),
+    url: yup.string().url().trim().required()
+      .notOneOf(links),
   });
   return schema.validate({ url });
 };
 
 export default () => {
+  const defaultLanguage = 'en';
+  const i18nextInstance = i18next.createInstance();
+  i18nextInstance.init({
+    lng: defaultLanguage,
+    resources,
+  });
+
+  yup.setLocale({
+    mixed: {
+      notOneOf: i18nextInstance.t('errors.alreadyExists'),
+    },
+    string: {
+      required: i18nextInstance.t('errors.emptyField'),
+      url: i18nextInstance.t('errors.invalidUrl'),
+    },
+  });
+
   const initialState = {
     form: {
       valid: false,
       processState: 'filling',
       processError: null,
-      errors: [],
+      errors: {},
     },
     data: {
       feeds: [],
@@ -34,9 +54,19 @@ export default () => {
     posts: document.querySelector('.posts'),
     feeds: document.querySelector('.feeds'),
     feedback: document.querySelector('.feedback'),
+    footer: document.querySelector('.footer'),
+    text: {
+      title: document.querySelector('.display-3'),
+      subtitle: document.querySelector('.lead'),
+      placeholder: document.querySelector('[for="url-input"]'),
+      example: document.querySelector('.text-muted'),
+      read: document.querySelector('.full-article'),
+    },
   };
 
-  const watchedState = onChange(initialState, render(elements, initialState));
+  const watchedState = onChange(initialState, render(elements, initialState, i18nextInstance));
+
+  renderText(elements, i18nextInstance);
 
   elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -56,7 +86,7 @@ export default () => {
       .catch((error) => {
         watchedState.form.valid = false;
         watchedState.form.processState = 'error';
-        watchedState.form.errors.push(error.message);
+        watchedState.form.errors = error.message;
       });
   });
 };

@@ -1,9 +1,9 @@
-const renderFeed = (elements) => {
+const renderFeed = (elements, i18nextInstance) => {
   const { input, feedback, form } = elements;
   input.classList.remove('is-invalid');
   feedback.classList.remove('text-danger');
   feedback.classList.add('text-success');
-  feedback.textContent = 'RSS uploaded successfully';
+  feedback.textContent = i18nextInstance.t('success');
 
   input.focus();
   form.reset();
@@ -17,10 +17,10 @@ const renderError = (elements, value) => {
   feedback.textContent = value;
 };
 
-const render = (elements, initialState) => (path, value) => {
+const render = (elements, initialState, i18nextInstance) => (path, value) => {
   switch (path) {
     case 'data.feeds':
-      renderFeed(elements);
+      renderFeed(elements, i18nextInstance);
       console.log(initialState);
       break;
 
