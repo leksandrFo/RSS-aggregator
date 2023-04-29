@@ -16,9 +16,12 @@ export default {
     view: 'Просмотр',
     footer: 'Создано',
     errors: {
+      required: 'Поле не должно быть пустым',
       invalidUrl: 'Ссылка должна быть валидным URL',
       emptyField: 'Поле не должно быть пустым',
       alreadyExists: 'RSS уже существует',
+      doesNotContainsRSS: 'Ресурс не содержит валидный RSS',
+      network: 'Ошибка сети',
     },
   },
 };

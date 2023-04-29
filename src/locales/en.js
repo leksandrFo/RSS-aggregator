@@ -16,9 +16,12 @@ export default {
     view: 'View',
     footer: 'created by',
     errors: {
+      required: 'This field cannot be empty',
       invalidUrl: 'Link must be a valid URL',
       emptyField: 'This field cannot be empty',
       alreadyExists: 'RSS already exists',
+      doesNotContainsRSS: 'The resource does not contain valid RSS',
+      network: 'Network error',
     },
   },
 };
