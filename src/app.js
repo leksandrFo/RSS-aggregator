@@ -25,6 +25,24 @@ const getData = (url) => {
   return axios.get(proxyUrl);
 };
 
+const rssUpdater = (initialState, watchedState) => {
+  const { links } = initialState.data;
+  const updateInterval = 5000;
+  const promises = links.map((link) => getData(link)
+    .then((response) => {
+      const { posts } = parse(response.data.contents);
+      const linksOfAddedPosts = initialState.data.posts.map((post) => post.link);
+      const newPosts = posts.filter((post) => !linksOfAddedPosts.includes(post.link));
+      const newPostsWithId = newPosts.map((post) => ({ ...post, id: _.uniqueId() }));
+      watchedState.data.posts.unshift(...newPostsWithId);
+    })
+    .catch((error) => {
+      throw new Error(error.message);
+    }));
+  Promise.all(promises)
+    .finally(() => setTimeout(() => rssUpdater(initialState, watchedState), updateInterval));
+};
+
 export default () => {
   const defaultLanguage = 'ru';
   const i18nextInstance = i18next.createInstance();
@@ -77,6 +95,7 @@ export default () => {
   const watchedState = onChange(initialState, render(elements, initialState, i18nextInstance));
 
   renderText(elements, i18nextInstance);
+  rssUpdater(initialState, watchedState);
 
   elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -97,7 +116,6 @@ export default () => {
         watchedState.data.posts.unshift(...postsWithId);
         watchedState.data.links.push(link);
         watchedState.form.processState = 'finished';
-        console.log('finished', initialState);
       })
       .catch((error) => {
         watchedState.form.valid = false;

@@ -150,8 +150,7 @@ const handlerProcessState = (elements, initialState, i18nextInstance) => {
   }
 };
 
-const render = (elements, initialState, i18nextInstance) => (path, value) => {
-  console.log(path, value);
+const render = (elements, initialState, i18nextInstance) => (path) => {
   switch (path) {
     case 'form.processState':
       handlerProcessState(elements, initialState, i18nextInstance);
