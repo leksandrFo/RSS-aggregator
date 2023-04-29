@@ -3,9 +3,11 @@ import './style.scss';
 import * as yup from 'yup';
 import i18next from 'i18next';
 import onChange from 'on-change';
+import axios from 'axios';
+import _ from 'lodash';
 import resources from './locales/index.js';
-import render from './view/render.js';
-import renderText from './view/renderText.js';
+import { render, renderText } from './view.js';
+import parse from './parser.js';
 
 const validate = (url, links) => {
   const schema = yup.object().shape({
@@ -15,8 +17,16 @@ const validate = (url, links) => {
   return schema.validate({ url });
 };
 
+const getData = (url) => {
+  const proxy = 'https://allorigins.hexlet.app';
+  const proxyUrl = new URL(`${proxy}/get`);
+  proxyUrl.searchParams.set('disableCache', 'true');
+  proxyUrl.searchParams.set('url', url);
+  return axios.get(proxyUrl);
+};
+
 export default () => {
-  const defaultLanguage = 'en';
+  const defaultLanguage = 'ru';
   const i18nextInstance = i18next.createInstance();
   i18nextInstance.init({
     lng: defaultLanguage,
@@ -26,9 +36,9 @@ export default () => {
   yup.setLocale({
     mixed: {
       notOneOf: i18nextInstance.t('errors.alreadyExists'),
+      required: i18nextInstance.t('errors.emptyField'),
     },
     string: {
-      required: i18nextInstance.t('errors.emptyField'),
       url: i18nextInstance.t('errors.invalidUrl'),
     },
   });
@@ -41,10 +51,10 @@ export default () => {
       errors: {},
     },
     data: {
+      links: [],
       feeds: [],
       posts: [],
     },
-    currentLink: '',
   };
 
   const elements = {
@@ -70,23 +80,44 @@ export default () => {
 
   elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
-
+    watchedState.processError = null;
     const formData = new FormData(event.target);
     const link = formData.get(elements.input.name);
-    const addedLinks = watchedState.data.feeds.map((lnk) => lnk);
-
-    validate(link, addedLinks)
+    const addedLinks = watchedState.data.links.map((lnk) => lnk);
+    validate(link, addedLinks, i18nextInstance)
       .then(({ url }) => {
         watchedState.form.valid = true;
         watchedState.form.processState = 'sending';
-        watchedState.form.errors = [];
-        watchedState.data.feeds.push(url);
-        watchedState.currentLink = url;
+        return getData(url);
+      })
+      .then((response) => {
+        const { feed, posts } = parse(response.data.contents);
+        watchedState.data.feeds.unshift({ ...feed, id: _.uniqueId() });
+        const postsWithId = posts.map((post) => ({ ...post, id: _.uniqueId() }));
+        watchedState.data.posts.unshift(...postsWithId);
+        watchedState.data.links.push(link);
+        watchedState.form.processState = 'finished';
+        console.log('finished', initialState);
       })
       .catch((error) => {
         watchedState.form.valid = false;
         watchedState.form.processState = 'error';
-        watchedState.form.errors = error.message;
+        switch (error.name) {
+          case 'AxiosError':
+            watchedState.form.processError = 'network';
+            break;
+
+          case 'Error':
+            watchedState.form.processError = 'doesNotContainsRSS';
+            break;
+
+          case 'ValidationError':
+            watchedState.form.processError = error.message;
+            break;
+
+          default:
+            break;
+        }
       });
   });
 };
