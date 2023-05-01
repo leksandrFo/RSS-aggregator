@@ -10,11 +10,14 @@ export default {
     submitButton: 'Добавить',
     example: 'Пример: https://ru.hexlet.io/lessons.rss',
     success: 'RSS успешно загружен',
-    read: 'Читать полностью',
     posts: 'Посты',
     feeds: 'Фиды',
     view: 'Просмотр',
     footer: 'Создано',
+    modal: {
+      read: 'Читать полностью',
+      close: 'Закрыть',
+    },
     errors: {
       required: 'Поле не должно быть пустым',
       invalidUrl: 'Ссылка должна быть валидным URL',

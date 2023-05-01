@@ -83,7 +83,7 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
       'border-end-0',
     );
     const link = document.createElement('a');
-    link.classList.add('fw-bold');
+    link.classList.add(initialState.uiState.readedPosts.includes(post.link) ? ('fw-normal', 'link-secondary') : 'fw-bold');
     link.setAttribute('href', post.link);
     link.setAttribute('data-id', post.id);
     link.setAttribute('target', '_blank');
@@ -96,13 +96,33 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
     button.setAttribute('data-id', post.id);
     button.setAttribute('data-bs-toggle', 'modal');
     button.setAttribute('data-bs-target', '#modal');
-
     listItem.append(link, button);
     listGroup.append(listItem);
   });
 
   divCardBody.append(listGroup);
   elements.posts.append(divCardBorder);
+};
+
+const renderModal = (elements, initialState, i18nextInstance, value) => {
+  if (value) {
+    const {
+      title,
+      description,
+      openButton,
+      closeButtonFooter,
+    } = elements.modal;
+    openButton.textContent = i18nextInstance.t('modal.read');
+    closeButtonFooter.textContent = i18nextInstance.t('modal.close');
+    const id = initialState.uiState.openedPostId;
+    const currentPost = initialState.data.posts.find((post) => post.id === id);
+    title.textContent = currentPost.title;
+    description.textContent = currentPost.description;
+    openButton.setAttribute('href', currentPost.link);
+    const link = document.querySelector(`a[data-id="${id}"]`);
+    link.classList.remove('fw-bold');
+    link.classList.add('fw-normal', 'link-secondary');
+  }
 };
 
 const renderError = (elements, initialState, i18nextInstance) => {
@@ -150,7 +170,7 @@ const handlerProcessState = (elements, initialState, i18nextInstance) => {
   }
 };
 
-const render = (elements, initialState, i18nextInstance) => (path) => {
+const render = (elements, initialState, i18nextInstance) => (path, value) => {
   switch (path) {
     case 'form.processState':
       handlerProcessState(elements, initialState, i18nextInstance);
@@ -165,6 +185,14 @@ const render = (elements, initialState, i18nextInstance) => (path) => {
       break;
 
     case 'data.posts':
+      renderPosts(elements, initialState, i18nextInstance);
+      break;
+
+    case 'uiState.openedPostId':
+      renderModal(elements, initialState, i18nextInstance, value);
+      break;
+
+    case 'uiState.readedPosts':
       renderPosts(elements, initialState, i18nextInstance);
       break;
 

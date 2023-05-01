@@ -73,6 +73,10 @@ export default () => {
       feeds: [],
       posts: [],
     },
+    uiState: {
+      openedPostId: null,
+      readedPosts: [],
+    },
   };
 
   const elements = {
@@ -83,6 +87,13 @@ export default () => {
     feeds: document.querySelector('.feeds'),
     feedback: document.querySelector('.feedback'),
     footer: document.querySelector('.footer'),
+    modal: {
+      title: document.querySelector('.modal-title'),
+      description: document.querySelector('.modal-body'),
+      openButton: document.querySelector('.full-article'),
+      closeButtonHeader: document.querySelector('div.modal-header button[data-bs-dismiss="modal"]'),
+      closeButtonFooter: document.querySelector('div.modal-footer button[data-bs-dismiss="modal"]'),
+    },
     text: {
       title: document.querySelector('.display-3'),
       subtitle: document.querySelector('.lead'),
@@ -137,5 +148,27 @@ export default () => {
             break;
         }
       });
+  });
+
+  elements.posts.addEventListener('click', (event) => {
+    const { link, id } = initialState.data.posts
+      .find((post) => post.id === event.target.dataset.id);
+    if (event.target.dataset.bsToggle === 'modal') {
+      watchedState.uiState.openedPostId = id;
+      if (!watchedState.uiState.readedPosts.includes(link)) {
+        watchedState.uiState.readedPosts.unshift(link);
+      }
+    }
+    if (!watchedState.uiState.readedPosts.includes(link)) {
+      watchedState.uiState.readedPosts.unshift(link);
+    }
+  });
+
+  elements.modal.closeButtonHeader.addEventListener('click', () => {
+    watchedState.uiState.openedPostId = null;
+  });
+
+  elements.modal.closeButtonFooter.addEventListener('click', () => {
+    watchedState.uiState.openedPostId = null;
   });
 };
