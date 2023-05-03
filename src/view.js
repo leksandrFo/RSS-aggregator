@@ -156,6 +156,7 @@ const handlerProcessState = (elements, initialState, i18nextInstance) => {
       break;
     case 'finished':
       elements.submitButton.removeAttribute('disabled');
+      elements.input.value = '';
       elements.input.removeAttribute('disabled');
       elements.input.classList.remove('is-invalid');
       elements.feedback.classList.remove('text-danger');
