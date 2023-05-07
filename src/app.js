@@ -1,40 +1,39 @@
-import 'bootstrap';
-import './style.scss';
 import * as yup from 'yup';
 import i18next from 'i18next';
-import onChange from 'on-change';
 import axios from 'axios';
 import _ from 'lodash';
 import resources from './locales/index.js';
-import { render, renderText } from './view.js';
+import localeConfig from './locales/localeConfig.js';
+import { watch, renderText } from './view.js';
 import parse from './parser.js';
 
 const validate = (url, links) => {
-  const schema = yup.object().shape({
-    url: yup.string().url().trim().required()
-      .notOneOf(links),
-  });
-  return schema.validate({ url });
+  const schema = yup.string()
+    .url()
+    .trim()
+    .required()
+    .notOneOf(links);
+  return schema.validate(url);
 };
 
-const getData = (url) => {
+const addProxy = (url) => {
   const proxy = 'https://allorigins.hexlet.app';
   const proxyUrl = new URL(`${proxy}/get`);
   proxyUrl.searchParams.set('disableCache', 'true');
   proxyUrl.searchParams.set('url', url);
-  return axios.get(proxyUrl);
+  return proxyUrl;
 };
 
 const rssUpdater = (initialState, watchedState) => {
-  const { links } = initialState.data;
+  const { links } = initialState.rss;
   const updateInterval = 5000;
-  const promises = links.map((link) => getData(link)
+  const promises = links.map((link) => axios.get(addProxy(link))
     .then((response) => {
       const { posts } = parse(response.data.contents);
-      const linksOfAddedPosts = initialState.data.posts.map((post) => post.link);
+      const linksOfAddedPosts = initialState.rss.posts.map((post) => post.link);
       const newPosts = posts.filter((post) => !linksOfAddedPosts.includes(post.link));
       const newPostsWithId = newPosts.map((post) => ({ ...post, id: _.uniqueId() }));
-      watchedState.data.posts.unshift(...newPostsWithId);
+      watchedState.rss.posts.unshift(...newPostsWithId);
     })
     .catch((error) => {
       throw new Error(error.message);
@@ -43,23 +42,15 @@ const rssUpdater = (initialState, watchedState) => {
     .finally(() => setTimeout(() => rssUpdater(initialState, watchedState), updateInterval));
 };
 
+const defaultLanguage = 'ru';
+
 export default () => {
-  const defaultLanguage = 'ru';
   const i18nextInstance = i18next.createInstance();
   i18nextInstance.init({
     lng: defaultLanguage,
     resources,
-  });
-
-  yup.setLocale({
-    mixed: {
-      notOneOf: i18nextInstance.t('errors.alreadyExists'),
-      required: i18nextInstance.t('errors.emptyField'),
-    },
-    string: {
-      url: i18nextInstance.t('errors.invalidUrl'),
-    },
-  });
+  })
+    .then(() => yup.setLocale(i18nextInstance.t(localeConfig)));
 
   const initialState = {
     form: {
@@ -68,12 +59,12 @@ export default () => {
       processError: null,
       errors: {},
     },
-    data: {
+    rss: {
       links: [],
       feeds: [],
       posts: [],
     },
-    uiState: {
+    ui: {
       openedPostId: null,
       readedPosts: [],
     },
@@ -103,7 +94,7 @@ export default () => {
     },
   };
 
-  const watchedState = onChange(initialState, render(elements, initialState, i18nextInstance));
+  const watchedState = watch(elements, initialState, i18nextInstance);
 
   renderText(elements, i18nextInstance);
   rssUpdater(initialState, watchedState);
@@ -113,19 +104,19 @@ export default () => {
     watchedState.processError = null;
     const formData = new FormData(event.target);
     const link = formData.get(elements.input.name);
-    const addedLinks = watchedState.data.links.map((lnk) => lnk);
-    validate(link, addedLinks, i18nextInstance)
-      .then(({ url }) => {
+    const addedLinks = watchedState.rss.links.map((lnk) => lnk);
+    validate(link, addedLinks)
+      .then((url) => {
         watchedState.form.valid = true;
         watchedState.form.processState = 'sending';
-        return getData(url);
+        return axios.get(addProxy(url));
       })
       .then((response) => {
         const { feed, posts } = parse(response.data.contents);
-        watchedState.data.feeds.unshift({ ...feed, id: _.uniqueId() });
+        watchedState.rss.feeds.unshift({ ...feed, id: _.uniqueId() });
         const postsWithId = posts.map((post) => ({ ...post, id: _.uniqueId() }));
-        watchedState.data.posts.unshift(...postsWithId);
-        watchedState.data.links.push(link);
+        watchedState.rss.posts.unshift(...postsWithId);
+        watchedState.rss.links.push(link);
         watchedState.form.processState = 'finished';
       })
       .catch((error) => {
@@ -151,24 +142,24 @@ export default () => {
   });
 
   elements.posts.addEventListener('click', (event) => {
-    const { link, id } = initialState.data.posts
+    const { link, id } = initialState.rss.posts
       .find((post) => post.id === event.target.dataset.id);
     if (event.target.dataset.bsToggle === 'modal') {
-      watchedState.uiState.openedPostId = id;
-      if (!watchedState.uiState.readedPosts.includes(link)) {
-        watchedState.uiState.readedPosts.unshift(link);
+      watchedState.ui.openedPostId = id;
+      if (!watchedState.ui.readedPosts.includes(link)) {
+        watchedState.ui.readedPosts.unshift(link);
       }
     }
-    if (!watchedState.uiState.readedPosts.includes(link)) {
-      watchedState.uiState.readedPosts.unshift(link);
+    if (!watchedState.ui.readedPosts.includes(link)) {
+      watchedState.ui.readedPosts.unshift(link);
     }
   });
 
   elements.modal.closeButtonHeader.addEventListener('click', () => {
-    watchedState.uiState.openedPostId = null;
+    watchedState.ui.openedPostId = null;
   });
 
   elements.modal.closeButtonFooter.addEventListener('click', () => {
-    watchedState.uiState.openedPostId = null;
+    watchedState.ui.openedPostId = null;
   });
 };

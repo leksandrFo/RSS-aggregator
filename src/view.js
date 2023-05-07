@@ -1,4 +1,5 @@
 /* eslint no-param-reassign: ["error", { "props": false }] */
+import onChange from 'on-change';
 
 const renderText = (elements, i18nextInstance) => {
   const {
@@ -17,7 +18,7 @@ const renderText = (elements, i18nextInstance) => {
 
 const renderFeeds = (elements, initialState, i18nextInstance) => {
   elements.feeds.innerHTML = '';
-  const { feeds } = initialState.data;
+  const { feeds } = initialState.rss;
 
   const divCardBorder = document.createElement('div');
   divCardBorder.classList.add('card', 'border-0');
@@ -54,7 +55,7 @@ const renderFeeds = (elements, initialState, i18nextInstance) => {
 
 const renderPosts = (elements, initialState, i18nextInstance) => {
   elements.posts.innerHTML = '';
-  const { posts } = initialState.data;
+  const { posts } = initialState.rss;
 
   const divCardBorder = document.createElement('div');
   divCardBorder.classList.add('card', 'border-0');
@@ -83,7 +84,11 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
       'border-end-0',
     );
     const link = document.createElement('a');
-    link.classList.add(initialState.uiState.readedPosts.includes(post.link) ? ('fw-normal', 'link-secondary') : 'fw-bold');
+    if (initialState.ui.readedPosts.includes(post.link)) {
+      link.classList.add('fw-normal', 'link-secondary');
+    } else {
+      link.classList.add('fw-bold');
+    }
     link.setAttribute('href', post.link);
     link.setAttribute('data-id', post.id);
     link.setAttribute('target', '_blank');
@@ -114,8 +119,8 @@ const renderModal = (elements, initialState, i18nextInstance, value) => {
     } = elements.modal;
     openButton.textContent = i18nextInstance.t('modal.read');
     closeButtonFooter.textContent = i18nextInstance.t('modal.close');
-    const id = initialState.uiState.openedPostId;
-    const currentPost = initialState.data.posts.find((post) => post.id === id);
+    const id = initialState.ui.openedPostId;
+    const currentPost = initialState.rss.posts.find((post) => post.id === id);
     title.textContent = currentPost.title;
     description.textContent = currentPost.description;
     openButton.setAttribute('href', currentPost.link);
@@ -181,19 +186,19 @@ const render = (elements, initialState, i18nextInstance) => (path, value) => {
       renderError(elements, initialState, i18nextInstance);
       break;
 
-    case 'data.feeds':
+    case 'rss.feeds':
       renderFeeds(elements, initialState, i18nextInstance);
       break;
 
-    case 'data.posts':
+    case 'rss.posts':
       renderPosts(elements, initialState, i18nextInstance);
       break;
 
-    case 'uiState.openedPostId':
+    case 'ui.openedPostId':
       renderModal(elements, initialState, i18nextInstance, value);
       break;
 
-    case 'uiState.readedPosts':
+    case 'ui.readedPosts':
       renderPosts(elements, initialState, i18nextInstance);
       break;
 
@@ -202,4 +207,8 @@ const render = (elements, initialState, i18nextInstance) => (path, value) => {
   }
 };
 
-export { render, renderText };
+const watch = (elements, initialState, i18nextInstance) => {
+  onChange(initialState, render(elements, initialState, i18nextInstance));
+};
+
+export { watch, renderText };
