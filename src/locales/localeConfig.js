@@ -1,13 +1,3 @@
-// export default {
-//   mixed: {
-//     notOneOf: () => ({ key: 'errors.alreadyExists' }),
-//     required: () => ({ key: 'errors.emptyField' }),
-//   },
-//   string: {
-//     url: () => ({ key: 'errors.invalidUrl' }),
-//   },
-// };
-
 export default {
   mixed: {
     notOneOf: 'errors.alreadyExists',

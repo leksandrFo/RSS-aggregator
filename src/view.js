@@ -1,7 +1,7 @@
 /* eslint no-param-reassign: ["error", { "props": false }] */
 import onChange from 'on-change';
 
-const renderText = (elements, i18nextInstance) => {
+const renderText = (elements, i18next) => {
   const {
     title,
     subtitle,
@@ -9,16 +9,16 @@ const renderText = (elements, i18nextInstance) => {
     example,
   } = elements.text;
   const { submitButton } = elements;
-  title.textContent = i18nextInstance.t('title');
-  subtitle.textContent = i18nextInstance.t('subtitle');
-  placeholder.textContent = i18nextInstance.t('placeholder');
-  submitButton.textContent = i18nextInstance.t('submitButton');
-  example.textContent = i18nextInstance.t('example');
+  title.textContent = i18next.t('title');
+  subtitle.textContent = i18next.t('subtitle');
+  placeholder.textContent = i18next.t('placeholder');
+  submitButton.textContent = i18next.t('submitButton');
+  example.textContent = i18next.t('example');
 };
 
-const renderFeeds = (elements, initialState, i18nextInstance) => {
+const renderFeeds = (elements, state, i18next) => {
   elements.feeds.innerHTML = '';
-  const { feeds } = initialState.rss;
+  const { feeds } = state.rss;
 
   const divCardBorder = document.createElement('div');
   divCardBorder.classList.add('card', 'border-0');
@@ -28,7 +28,7 @@ const renderFeeds = (elements, initialState, i18nextInstance) => {
 
   const cardTitle = document.createElement('h2');
   cardTitle.classList.add('card-title', 'h4');
-  cardTitle.textContent = i18nextInstance.t('feeds');
+  cardTitle.textContent = i18next.t('feeds');
 
   divCardBody.append(cardTitle);
   divCardBorder.append(divCardBody);
@@ -53,9 +53,9 @@ const renderFeeds = (elements, initialState, i18nextInstance) => {
   elements.feeds.append(divCardBorder);
 };
 
-const renderPosts = (elements, initialState, i18nextInstance) => {
+const renderPosts = (elements, state, i18next) => {
   elements.posts.innerHTML = '';
-  const { posts } = initialState.rss;
+  const { posts } = state.rss;
 
   const divCardBorder = document.createElement('div');
   divCardBorder.classList.add('card', 'border-0');
@@ -65,7 +65,7 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
 
   const cardTitle = document.createElement('h2');
   cardTitle.classList.add('card-title', 'h4');
-  cardTitle.textContent = i18nextInstance.t('posts');
+  cardTitle.textContent = i18next.t('posts');
 
   divCardBody.append(cardTitle);
   divCardBorder.append(divCardBody);
@@ -84,7 +84,7 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
       'border-end-0',
     );
     const link = document.createElement('a');
-    if (initialState.ui.readedPosts.includes(post.link)) {
+    if (state.ui.readedPosts.includes(post.link)) {
       link.classList.add('fw-normal', 'link-secondary');
     } else {
       link.classList.add('fw-bold');
@@ -97,7 +97,7 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
 
     const button = document.createElement('button');
     button.classList.add('btn', 'btn-outline-primary', 'btn-sm');
-    button.textContent = i18nextInstance.t('view');
+    button.textContent = i18next.t('view');
     button.setAttribute('data-id', post.id);
     button.setAttribute('data-bs-toggle', 'modal');
     button.setAttribute('data-bs-target', '#modal');
@@ -109,7 +109,7 @@ const renderPosts = (elements, initialState, i18nextInstance) => {
   elements.posts.append(divCardBorder);
 };
 
-const renderModal = (elements, initialState, i18nextInstance, value) => {
+const renderModal = (elements, state, i18next, value) => {
   if (value) {
     const {
       title,
@@ -117,10 +117,10 @@ const renderModal = (elements, initialState, i18nextInstance, value) => {
       openButton,
       closeButtonFooter,
     } = elements.modal;
-    openButton.textContent = i18nextInstance.t('modal.read');
-    closeButtonFooter.textContent = i18nextInstance.t('modal.close');
-    const id = initialState.ui.openedPostId;
-    const currentPost = initialState.rss.posts.find((post) => post.id === id);
+    openButton.textContent = i18next.t('modal.read');
+    closeButtonFooter.textContent = i18next.t('modal.close');
+    const id = state.ui.openedPostId;
+    const currentPost = state.rss.posts.find((post) => post.id === id);
     title.textContent = currentPost.title;
     description.textContent = currentPost.description;
     openButton.setAttribute('href', currentPost.link);
@@ -130,35 +130,28 @@ const renderModal = (elements, initialState, i18nextInstance, value) => {
   }
 };
 
-const renderError = (elements, initialState, i18nextInstance) => {
+const renderError = (elements, state, i18next) => {
   elements.submitButton.removeAttribute('disabled');
   elements.input.removeAttribute('disabled');
   elements.input.classList.add('is-invalid');
   elements.feedback.classList.remove('text-success');
   elements.feedback.classList.add('text-danger');
-  if (
-    initialState.form.processError === 'network'
-    || initialState.form.processError === 'doesNotContainsRSS'
-  ) {
-    elements.feedback.textContent = i18nextInstance.t(
-      `errors.${initialState.form.processError}`,
-    );
-  } else {
-    elements.feedback.textContent = initialState.form.processError;
-  }
+  elements.feedback.textContent = i18next.t(state.form.processError);
 };
 
-const handlerProcessState = (elements, initialState, i18nextInstance) => {
-  const { processState } = initialState.form;
+const handlerProcessState = (elements, state, i18next) => {
+  const { processState } = state.form;
   switch (processState) {
     case 'filling':
       elements.submitButton.removeAttribute('disabled');
       elements.input.removeAttribute('disabled');
       break;
+
     case 'sending':
       elements.submitButton.setAttribute('disabled', 'disabled');
       elements.input.setAttribute('disabled', 'disabled');
       break;
+
     case 'finished':
       elements.submitButton.removeAttribute('disabled');
       elements.input.value = '';
@@ -166,40 +159,42 @@ const handlerProcessState = (elements, initialState, i18nextInstance) => {
       elements.input.classList.remove('is-invalid');
       elements.feedback.classList.remove('text-danger');
       elements.feedback.classList.add('text-success');
-      elements.feedback.textContent = i18nextInstance.t('success');
+      elements.feedback.textContent = i18next.t('success');
       break;
+
     case 'error':
-      renderError(elements, initialState, i18nextInstance);
+      renderError(elements, state, i18next);
       break;
+
     default:
       break;
   }
 };
 
-const render = (elements, initialState, i18nextInstance) => (path, value) => {
+const render = (elements, state, i18next) => (path, value) => {
   switch (path) {
     case 'form.processState':
-      handlerProcessState(elements, initialState, i18nextInstance);
+      handlerProcessState(elements, state, i18next);
       break;
 
     case 'form.processError':
-      renderError(elements, initialState, i18nextInstance);
+      renderError(elements, state, i18next);
       break;
 
     case 'rss.feeds':
-      renderFeeds(elements, initialState, i18nextInstance);
+      renderFeeds(elements, state, i18next);
       break;
 
     case 'rss.posts':
-      renderPosts(elements, initialState, i18nextInstance);
+      renderPosts(elements, state, i18next);
       break;
 
     case 'ui.openedPostId':
-      renderModal(elements, initialState, i18nextInstance, value);
+      renderModal(elements, state, i18next, value);
       break;
 
     case 'ui.readedPosts':
-      renderPosts(elements, initialState, i18nextInstance);
+      renderPosts(elements, state, i18next);
       break;
 
     default:
@@ -207,8 +202,6 @@ const render = (elements, initialState, i18nextInstance) => (path, value) => {
   }
 };
 
-const watch = (elements, initialState, i18nextInstance) => {
-  onChange(initialState, render(elements, initialState, i18nextInstance));
-};
+const watch = (elements, state, i18next) => onChange(state, render(elements, state, i18next));
 
 export { watch, renderText };

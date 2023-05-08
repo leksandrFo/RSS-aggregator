@@ -25,6 +25,7 @@ export default {
       alreadyExists: 'RSS already exists',
       doesNotContainsRSS: 'The resource does not contain valid RSS',
       network: 'Network error',
+      unknown: 'Unknown error',
     },
   },
 };

@@ -24,6 +24,22 @@ const addProxy = (url) => {
   return proxyUrl;
 };
 
+const getErrorType = (error) => {
+  switch (error.name) {
+    case 'AxiosError':
+      return 'errors.network';
+
+    case 'Error':
+      return 'errors.doesNotContainsRSS';
+
+    case 'ValidationError':
+      return error.message;
+
+    default:
+      return 'Unknown error';
+  }
+};
+
 const rssUpdater = (initialState, watchedState) => {
   const { links } = initialState.rss;
   const updateInterval = 5000;
@@ -50,7 +66,7 @@ export default () => {
     lng: defaultLanguage,
     resources,
   })
-    .then(() => yup.setLocale(i18nextInstance.t(localeConfig)));
+    .then(() => yup.setLocale(localeConfig));
 
   const initialState = {
     form: {
@@ -122,22 +138,7 @@ export default () => {
       .catch((error) => {
         watchedState.form.valid = false;
         watchedState.form.processState = 'error';
-        switch (error.name) {
-          case 'AxiosError':
-            watchedState.form.processError = 'network';
-            break;
-
-          case 'Error':
-            watchedState.form.processError = 'doesNotContainsRSS';
-            break;
-
-          case 'ValidationError':
-            watchedState.form.processError = error.message;
-            break;
-
-          default:
-            break;
-        }
+        watchedState.form.processError = getErrorType(error);
       });
   });
 
