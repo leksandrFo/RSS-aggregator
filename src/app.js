@@ -127,7 +127,10 @@ const app = () => {
             const updatedFormState = { isValidate: true, error: null };
             const updatedLoadingProcessState = { status: 'loading', error: null };
             watchedState.form = { ...watchedState.form, ...updatedFormState };
-            watchedState.loadingProcess = { ...watchedState.loadingProcess, ...updatedLoadingProcessState };
+            watchedState.loadingProcess = {
+              ...watchedState.loadingProcess,
+              ...updatedLoadingProcessState,
+            };
             return axios.get(addProxy(url));
           })
           .then((response) => {
@@ -141,7 +144,10 @@ const app = () => {
             }));
             watchedState.posts.unshift(...postsWithId);
             const updatedLoadingProcessState = { status: 'success', error: null };
-            watchedState.loadingProcess = { ...watchedState.loadingProcess, ...updatedLoadingProcessState };
+            watchedState.loadingProcess = {
+              ...watchedState.loadingProcess,
+              ...updatedLoadingProcessState,
+            };
           })
           .catch((error) => {
             if (error.name === 'ValidationError') {
@@ -149,7 +155,10 @@ const app = () => {
               watchedState.form = { ...watchedState.form, ...updatedFormState };
             } else {
               const updatedLoadingProcessState = { error: getErrorType(error), status: 'failed' };
-              watchedState.loadingProcess = { ...watchedState.loadingProcess, ...updatedLoadingProcessState };
+              watchedState.loadingProcess = {
+                ...watchedState.loadingProcess,
+                ...updatedLoadingProcessState,
+              };
             }
           });
       });
