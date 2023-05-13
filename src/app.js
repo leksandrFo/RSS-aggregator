@@ -4,15 +4,19 @@ import axios from 'axios';
 import _ from 'lodash';
 import resources from './locales/index.js';
 import localeConfig from './locales/localeConfig.js';
-import { watch, renderText } from './view.js';
+import watch from './view.js';
 import parse from './parser.js';
 
-const validate = (url, links) => {
+const UPDATE_INTERVAL = 5000;
+const DEFAULT_LANGUAGE = 'ru';
+
+const validate = (url, feeds) => {
+  const addedLinks = feeds.map((feed) => feed.link);
   const schema = yup.string()
     .url()
     .trim()
     .required()
-    .notOneOf(links);
+    .notOneOf(addedLinks);
   return schema.validate(url);
 };
 
@@ -32,58 +36,49 @@ const getErrorType = (error) => {
     case 'Error':
       return 'errors.doesNotContainsRSS';
 
-    case 'ValidationError':
-      return error.message;
-
     default:
       return 'Unknown error';
   }
 };
 
 const rssUpdater = (initialState, watchedState) => {
-  const { links } = initialState.rss;
-  const updateInterval = 5000;
-  const promises = links.map((link) => axios.get(addProxy(link))
+  const { feeds } = initialState;
+  const promises = feeds.map(({ link, id }) => axios.get(addProxy(link))
     .then((response) => {
       const { posts } = parse(response.data.contents);
-      const linksOfAddedPosts = initialState.rss.posts.map((post) => post.link);
+      const linksOfAddedPosts = initialState.posts.map((post) => post.link);
       const newPosts = posts.filter((post) => !linksOfAddedPosts.includes(post.link));
-      const newPostsWithId = newPosts.map((post) => ({ ...post, id: _.uniqueId() }));
-      watchedState.rss.posts.unshift(...newPostsWithId);
+      const newPostsWithId = newPosts.map((post) => ({
+        ...post,
+        feedId: id,
+        id: _.uniqueId(),
+      }));
+      watchedState.posts.unshift(...newPostsWithId);
     })
     .catch((error) => {
       throw new Error(error.message);
     }));
   Promise.all(promises)
-    .finally(() => setTimeout(() => rssUpdater(initialState, watchedState), updateInterval));
+    .finally(() => setTimeout(() => rssUpdater(initialState, watchedState), UPDATE_INTERVAL));
 };
 
-const defaultLanguage = 'ru';
-
-export default () => {
-  const i18nextInstance = i18next.createInstance();
-  i18nextInstance.init({
-    lng: defaultLanguage,
-    resources,
-  })
-    .then(() => yup.setLocale(localeConfig));
-
+const app = () => {
   const initialState = {
+    language: '',
     form: {
-      valid: false,
-      processState: 'filling',
-      processError: null,
-      errors: {},
+      isValidate: false,
+      error: null,
     },
-    rss: {
-      links: [],
-      feeds: [],
-      posts: [],
+    loadingProcess: {
+      status: 'idle',
+      error: null,
     },
     ui: {
       openedPostId: null,
-      readedPosts: [],
+      readedPosts: new Set(),
     },
+    feeds: [],
+    posts: [],
   };
 
   const elements = {
@@ -102,7 +97,7 @@ export default () => {
       closeButtonFooter: document.querySelector('div.modal-footer button[data-bs-dismiss="modal"]'),
     },
     text: {
-      title: document.querySelector('.display-3'),
+      title: document.querySelector('.title'),
       subtitle: document.querySelector('.lead'),
       placeholder: document.querySelector('[for="url-input"]'),
       example: document.querySelector('.text-muted'),
@@ -110,57 +105,70 @@ export default () => {
     },
   };
 
-  const watchedState = watch(elements, initialState, i18nextInstance);
+  const i18nextInstance = i18next.createInstance();
+  i18nextInstance
+    .init({
+      lng: DEFAULT_LANGUAGE,
+      resources,
+    })
+    .then(() => {
+      yup.setLocale(localeConfig);
+      const watchedState = watch(elements, initialState, i18nextInstance);
 
-  renderText(elements, i18nextInstance);
-  rssUpdater(initialState, watchedState);
+      watchedState.language = DEFAULT_LANGUAGE;
+      rssUpdater(initialState, watchedState);
 
-  elements.form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    watchedState.processError = null;
-    const formData = new FormData(event.target);
-    const link = formData.get(elements.input.name);
-    const addedLinks = watchedState.rss.links.map((lnk) => lnk);
-    validate(link, addedLinks)
-      .then((url) => {
-        watchedState.form.valid = true;
-        watchedState.form.processState = 'sending';
-        return axios.get(addProxy(url));
-      })
-      .then((response) => {
-        const { feed, posts } = parse(response.data.contents);
-        watchedState.rss.feeds.unshift({ ...feed, id: _.uniqueId() });
-        const postsWithId = posts.map((post) => ({ ...post, id: _.uniqueId() }));
-        watchedState.rss.posts.unshift(...postsWithId);
-        watchedState.rss.links.push(link);
-        watchedState.form.processState = 'finished';
-      })
-      .catch((error) => {
-        watchedState.form.valid = false;
-        watchedState.form.processState = 'error';
-        watchedState.form.processError = getErrorType(error);
+      elements.form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const link = formData.get(elements.input.name);
+        validate(link, watchedState.feeds)
+          .then((url) => {
+            const updatedFormState = { isValidate: true, error: null };
+            const updatedLoadingProcessState = { status: 'loading', error: null };
+            watchedState.form = { ...watchedState.form, ...updatedFormState };
+            watchedState.loadingProcess = { ...watchedState.loadingProcess, ...updatedLoadingProcessState };
+            return axios.get(addProxy(url));
+          })
+          .then((response) => {
+            const { feed, posts } = parse(response.data.contents);
+            watchedState.feeds.unshift({ ...feed, link, id: _.uniqueId() });
+            const { id } = watchedState.feeds[0];
+            const postsWithId = posts.map((post) => ({
+              ...post,
+              feedId: id,
+              id: _.uniqueId(),
+            }));
+            watchedState.posts.unshift(...postsWithId);
+            const updatedLoadingProcessState = { status: 'success', error: null };
+            watchedState.loadingProcess = { ...watchedState.loadingProcess, ...updatedLoadingProcessState };
+          })
+          .catch((error) => {
+            if (error.name === 'ValidationError') {
+              const updatedFormState = { isValidate: false, error: error.message };
+              watchedState.form = { ...watchedState.form, ...updatedFormState };
+            } else {
+              const updatedLoadingProcessState = { error: getErrorType(error), status: 'failed' };
+              watchedState.loadingProcess = { ...watchedState.loadingProcess, ...updatedLoadingProcessState };
+            }
+          });
       });
-  });
 
-  elements.posts.addEventListener('click', (event) => {
-    const { link, id } = initialState.rss.posts
-      .find((post) => post.id === event.target.dataset.id);
-    if (event.target.dataset.bsToggle === 'modal') {
-      watchedState.ui.openedPostId = id;
-      if (!watchedState.ui.readedPosts.includes(link)) {
-        watchedState.ui.readedPosts.unshift(link);
-      }
-    }
-    if (!watchedState.ui.readedPosts.includes(link)) {
-      watchedState.ui.readedPosts.unshift(link);
-    }
-  });
+      elements.posts.addEventListener('click', (event) => {
+        const { link, id } = initialState.posts
+          .find((post) => post.id === event.target.dataset.id);
+        watchedState.ui.openedPostId = id;
+        watchedState.ui.readedPosts.add(link);
+      });
 
-  elements.modal.closeButtonHeader.addEventListener('click', () => {
-    watchedState.ui.openedPostId = null;
-  });
+      elements.modal.closeButtonHeader.addEventListener('click', () => {
+        watchedState.ui.openedPostId = null;
+      });
 
-  elements.modal.closeButtonFooter.addEventListener('click', () => {
-    watchedState.ui.openedPostId = null;
-  });
+      elements.modal.closeButtonFooter.addEventListener('click', () => {
+        watchedState.ui.openedPostId = null;
+      });
+    });
 };
+
+export default app;

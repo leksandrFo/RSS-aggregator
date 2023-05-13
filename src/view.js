@@ -18,7 +18,7 @@ const renderText = (elements, i18next) => {
 
 const renderFeeds = (elements, state, i18next) => {
   elements.feeds.innerHTML = '';
-  const { feeds } = state.rss;
+  const { feeds } = state;
 
   const divCardBorder = document.createElement('div');
   divCardBorder.classList.add('card', 'border-0');
@@ -55,7 +55,7 @@ const renderFeeds = (elements, state, i18next) => {
 
 const renderPosts = (elements, state, i18next) => {
   elements.posts.innerHTML = '';
-  const { posts } = state.rss;
+  const { posts } = state;
 
   const divCardBorder = document.createElement('div');
   divCardBorder.classList.add('card', 'border-0');
@@ -84,7 +84,7 @@ const renderPosts = (elements, state, i18next) => {
       'border-end-0',
     );
     const link = document.createElement('a');
-    if (state.ui.readedPosts.includes(post.link)) {
+    if (state.ui.readedPosts.has(post.link)) {
       link.classList.add('fw-normal', 'link-secondary');
     } else {
       link.classList.add('fw-bold');
@@ -120,7 +120,7 @@ const renderModal = (elements, state, i18next, value) => {
     openButton.textContent = i18next.t('modal.read');
     closeButtonFooter.textContent = i18next.t('modal.close');
     const id = state.ui.openedPostId;
-    const currentPost = state.rss.posts.find((post) => post.id === id);
+    const currentPost = state.posts.find((post) => post.id === id);
     title.textContent = currentPost.title;
     description.textContent = currentPost.description;
     openButton.setAttribute('href', currentPost.link);
@@ -136,34 +136,42 @@ const renderError = (elements, state, i18next) => {
   elements.input.classList.add('is-invalid');
   elements.feedback.classList.remove('text-success');
   elements.feedback.classList.add('text-danger');
-  elements.feedback.textContent = i18next.t(state.form.processError);
+  elements.feedback.textContent = i18next.t(state.error);
 };
 
-const handlerProcessState = (elements, state, i18next) => {
-  const { processState } = state.form;
-  switch (processState) {
-    case 'filling':
+const handlerForm = (elements, state, i18next) => {
+  const { isValidate } = state.form;
+  if (!isValidate) {
+    renderError(elements, state.form, i18next);
+  }
+};
+
+const handlerLoadingProcess = (elements, state, i18next) => {
+  const { status } = state.loadingProcess;
+  switch (status) {
+    case 'idle':
       elements.submitButton.removeAttribute('disabled');
       elements.input.removeAttribute('disabled');
       break;
 
-    case 'sending':
+    case 'loading':
       elements.submitButton.setAttribute('disabled', 'disabled');
       elements.input.setAttribute('disabled', 'disabled');
       break;
 
-    case 'finished':
+    case 'success':
       elements.submitButton.removeAttribute('disabled');
       elements.input.value = '';
       elements.input.removeAttribute('disabled');
       elements.input.classList.remove('is-invalid');
+      elements.input.focus();
       elements.feedback.classList.remove('text-danger');
       elements.feedback.classList.add('text-success');
       elements.feedback.textContent = i18next.t('success');
       break;
 
-    case 'error':
-      renderError(elements, state, i18next);
+    case 'failed':
+      renderError(elements, state.loadingProcess, i18next);
       break;
 
     default:
@@ -173,19 +181,23 @@ const handlerProcessState = (elements, state, i18next) => {
 
 const render = (elements, state, i18next) => (path, value) => {
   switch (path) {
-    case 'form.processState':
-      handlerProcessState(elements, state, i18next);
+    case 'language':
+      renderText(elements, i18next);
       break;
 
-    case 'form.processError':
-      renderError(elements, state, i18next);
+    case 'form':
+      handlerForm(elements, state, i18next);
       break;
 
-    case 'rss.feeds':
+    case 'loadingProcess':
+      handlerLoadingProcess(elements, state, i18next);
+      break;
+
+    case 'feeds':
       renderFeeds(elements, state, i18next);
       break;
 
-    case 'rss.posts':
+    case 'posts':
       renderPosts(elements, state, i18next);
       break;
 
@@ -204,4 +216,4 @@ const render = (elements, state, i18next) => (path, value) => {
 
 const watch = (elements, state, i18next) => onChange(state, render(elements, state, i18next));
 
-export { watch, renderText };
+export default watch;

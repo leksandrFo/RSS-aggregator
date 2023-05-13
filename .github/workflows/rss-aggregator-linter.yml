@@ -1,4 +1,4 @@
-name: rss-aggregator-workflow
+name: rss-aggregator-linter
 
 on: push
 

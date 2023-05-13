@@ -8,8 +8,7 @@ export default (data) => {
 
   const title = parsedData.documentElement.querySelector('title').textContent;
   const description = parsedData.documentElement.querySelector('description').textContent;
-  const link = parsedData.documentElement.querySelector('link').textContent;
-  const feed = { title, description, link };
+  const feed = { title, description };
 
   const items = Array.from(parsedData.querySelectorAll('item'));
   const posts = items.map((item) => {
