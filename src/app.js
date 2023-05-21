@@ -6,12 +6,13 @@ import resources from './locales/index.js';
 import localeConfig from './locales/localeConfig.js';
 import watch from './view.js';
 import parse from './parser.js';
+/* eslint no-param-reassign: "error" */
 
 const UPDATE_INTERVAL = 5000;
 const DEFAULT_LANGUAGE = 'ru';
 
-const validate = (url, feeds) => {
-  const addedLinks = feeds.map((feed) => feed.link);
+const validate = (url, watchedState) => {
+  const addedLinks = watchedState.feeds.map((feed) => feed.link);
   const schema = yup.string()
     .url()
     .trim()
@@ -20,46 +21,80 @@ const validate = (url, feeds) => {
   return schema.validate(url);
 };
 
-const addProxy = (url) => {
+const addProxy = (link) => {
   const proxy = 'https://allorigins.hexlet.app';
   const proxyUrl = new URL(`${proxy}/get`);
   proxyUrl.searchParams.set('disableCache', 'true');
-  proxyUrl.searchParams.set('url', url);
+  proxyUrl.searchParams.set('url', link);
   return proxyUrl;
 };
 
 const getErrorType = (error) => {
-  switch (error.name) {
-    case 'AxiosError':
-      return 'errors.network';
-
-    case 'Error':
+  switch (true) {
+    case error.isParsingError:
       return 'errors.doesNotContainsRSS';
 
+    case error.isAxiosError:
+      if (error.isAxiosError && error.code === 'ECONNABORTED') {
+        return 'errors.timeout';
+      }
+      return 'errors.network';
+
     default:
-      return 'Unknown error';
+      return 'errors.unknown';
   }
 };
 
-const rssUpdater = (initialState, watchedState) => {
-  const { feeds } = initialState;
-  const promises = feeds.map(({ link, id }) => axios.get(addProxy(link))
+const loadData = (link, watchedState) => {
+  watchedState.loadingProcess = {
+    ...watchedState.loadingProcess,
+    status: 'loading',
+    error: null,
+  };
+
+  return axios
+    .get(addProxy(link))
     .then((response) => {
-      const { posts } = parse(response.data.contents);
-      const linksOfAddedPosts = initialState.posts.map((post) => post.link);
-      const newPosts = posts.filter((post) => !linksOfAddedPosts.includes(post.link));
-      const newPostsWithId = newPosts.map((post) => ({
+      const { feed, posts } = parse(response.data.contents);
+      watchedState.feeds.unshift({ ...feed, link, id: _.uniqueId() });
+      const { id } = watchedState.feeds[0];
+      const postsWithId = posts.map((post) => ({
         ...post,
         feedId: id,
         id: _.uniqueId(),
       }));
-      watchedState.posts.unshift(...newPostsWithId);
+      watchedState.posts.unshift(...postsWithId);
+      watchedState.loadingProcess = {
+        ...watchedState.loadingProcess,
+        status: 'success',
+        error: null,
+      };
+    })
+    .catch((error) => {
+      const updatedLoadingProcessState = { error: getErrorType(error), status: 'failed' };
+      watchedState.loadingProcess = {
+        ...watchedState.loadingProcess,
+        ...updatedLoadingProcessState,
+      };
+    });
+};
+
+const rssUpdater = (watchedState) => {
+  const { feeds } = watchedState;
+  const promises = feeds.map(({ link, id }) => axios.get(addProxy(link))
+    .then((response) => {
+      const { posts } = parse(response.data.contents);
+      const linksOfAddedPosts = watchedState.posts.map((post) => post.link);
+      const newPosts = posts
+        .filter((post) => !linksOfAddedPosts.includes(post.link))
+        .map((post) => ({ ...post, feedId: id, id: _.uniqueId() }));
+      watchedState.posts.unshift(...newPosts);
     })
     .catch((error) => {
       throw new Error(error.message);
     }));
   Promise.all(promises)
-    .finally(() => setTimeout(() => rssUpdater(initialState, watchedState), UPDATE_INTERVAL));
+    .finally(() => setTimeout(() => rssUpdater(watchedState), UPDATE_INTERVAL));
 };
 
 const app = () => {
@@ -93,7 +128,7 @@ const app = () => {
       title: document.querySelector('.modal-title'),
       description: document.querySelector('.modal-body'),
       openButton: document.querySelector('.full-article'),
-      closeButtonHeader: document.querySelector('div.modal-header button[data-bs-dismiss="modal"]'),
+      closeButtons: document.querySelectorAll('[data-bs-dismiss="modal"]'),
       closeButtonFooter: document.querySelector('div.modal-footer button[data-bs-dismiss="modal"]'),
     },
     text: {
@@ -116,66 +151,36 @@ const app = () => {
       const watchedState = watch(elements, initialState, i18nextInstance);
 
       watchedState.language = DEFAULT_LANGUAGE;
-      rssUpdater(initialState, watchedState);
+      rssUpdater(watchedState);
 
       elements.form.addEventListener('submit', (event) => {
         event.preventDefault();
         const formData = new FormData(event.target);
         const link = formData.get(elements.input.name);
-        validate(link, watchedState.feeds)
-          .then((url) => {
+        validate(link, watchedState)
+          .then(() => {
             const updatedFormState = { isValidate: true, error: null };
-            const updatedLoadingProcessState = { status: 'loading', error: null };
             watchedState.form = { ...watchedState.form, ...updatedFormState };
-            watchedState.loadingProcess = {
-              ...watchedState.loadingProcess,
-              ...updatedLoadingProcessState,
-            };
-            return axios.get(addProxy(url));
-          })
-          .then((response) => {
-            const { feed, posts } = parse(response.data.contents);
-            watchedState.feeds.unshift({ ...feed, link, id: _.uniqueId() });
-            const { id } = watchedState.feeds[0];
-            const postsWithId = posts.map((post) => ({
-              ...post,
-              feedId: id,
-              id: _.uniqueId(),
-            }));
-            watchedState.posts.unshift(...postsWithId);
-            const updatedLoadingProcessState = { status: 'success', error: null };
-            watchedState.loadingProcess = {
-              ...watchedState.loadingProcess,
-              ...updatedLoadingProcessState,
-            };
+
+            loadData(link, watchedState);
           })
           .catch((error) => {
-            if (error.name === 'ValidationError') {
-              const updatedFormState = { isValidate: false, error: error.message };
-              watchedState.form = { ...watchedState.form, ...updatedFormState };
-            } else {
-              const updatedLoadingProcessState = { error: getErrorType(error), status: 'failed' };
-              watchedState.loadingProcess = {
-                ...watchedState.loadingProcess,
-                ...updatedLoadingProcessState,
-              };
-            }
+            const updatedFormState = { isValidate: false, error: error.message };
+            watchedState.form = { ...watchedState.form, ...updatedFormState };
           });
       });
 
       elements.posts.addEventListener('click', (event) => {
-        const { link, id } = initialState.posts
+        const { id } = watchedState.posts
           .find((post) => post.id === event.target.dataset.id);
         watchedState.ui.openedPostId = id;
-        watchedState.ui.readedPosts.add(link);
+        watchedState.ui.readedPosts.add(id);
       });
 
-      elements.modal.closeButtonHeader.addEventListener('click', () => {
-        watchedState.ui.openedPostId = null;
-      });
-
-      elements.modal.closeButtonFooter.addEventListener('click', () => {
-        watchedState.ui.openedPostId = null;
+      elements.modal.closeButtons.forEach((closeButton) => {
+        closeButton.addEventListener('click', () => {
+          watchedState.ui.openedPostId = null;
+        });
       });
     });
 };

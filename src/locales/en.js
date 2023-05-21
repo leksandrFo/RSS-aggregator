@@ -24,6 +24,7 @@ export default {
       emptyField: 'This field cannot be empty',
       alreadyExists: 'RSS already exists',
       doesNotContainsRSS: 'The resource does not contain valid RSS',
+      timeout: 'Timeout expired',
       network: 'Network error',
       unknown: 'Unknown error',
     },

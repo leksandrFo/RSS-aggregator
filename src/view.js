@@ -84,7 +84,7 @@ const renderPosts = (elements, state, i18next) => {
       'border-end-0',
     );
     const link = document.createElement('a');
-    if (state.ui.readedPosts.has(post.link)) {
+    if (state.ui.readedPosts.has(post.id)) {
       link.classList.add('fw-normal', 'link-secondary');
     } else {
       link.classList.add('fw-bold');

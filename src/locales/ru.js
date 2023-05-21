@@ -24,6 +24,7 @@ export default {
       emptyField: 'Поле не должно быть пустым',
       alreadyExists: 'RSS уже существует',
       doesNotContainsRSS: 'Ресурс не содержит валидный RSS',
+      timeout: 'Превышено время ожидания',
       network: 'Ошибка сети',
       unknown: 'Неизвестная ошибка',
     },
