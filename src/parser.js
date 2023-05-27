@@ -12,8 +12,7 @@ export default (data) => {
   const description = parsedData.documentElement.querySelector('description').textContent;
   const feed = { title, description };
 
-  const items = Array.from(parsedData.querySelectorAll('item'));
-  const posts = items.map((item) => {
+  const posts = Array.from(parsedData.querySelectorAll('item')).map((item) => {
     const postTitle = item.querySelector('title').textContent;
     const postDescription = item.querySelector('description').textContent;
     const postLink = item.querySelector('link').textContent;
@@ -23,5 +22,6 @@ export default (data) => {
       link: postLink,
     };
   });
+
   return { feed, posts };
 };

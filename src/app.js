@@ -6,18 +6,16 @@ import resources from './locales/index.js';
 import localeConfig from './locales/localeConfig.js';
 import watch from './view.js';
 import parse from './parser.js';
-/* eslint no-param-reassign: "error" */
 
 const UPDATE_INTERVAL = 5000;
 const DEFAULT_LANGUAGE = 'ru';
 
-const validate = (url, watchedState) => {
-  const addedLinks = watchedState.feeds.map((feed) => feed.link);
+const validate = (url, urls) => {
   const schema = yup.string()
     .url()
     .trim()
     .required()
-    .notOneOf(addedLinks);
+    .notOneOf(urls);
   return schema.validate(url);
 };
 
@@ -30,33 +28,24 @@ const addProxy = (link) => {
 };
 
 const getErrorType = (error) => {
-  switch (true) {
-    case error.isParsingError:
-      return 'errors.doesNotContainsRSS';
+  if (error.isParsingError) return 'errors.doesNotContainsRSS';
 
-    case error.isAxiosError:
-      if (error.isAxiosError && error.code === 'ECONNABORTED') {
-        return 'errors.timeout';
-      }
-      return 'errors.network';
+  if (error.isAxiosError && error.code === 'ECONNABORTED') return 'errors.timeout';
 
-    default:
-      return 'errors.unknown';
-  }
+  if (error.isAxiosError) return 'errors.network';
+
+  return 'errors.unknown';
 };
 
-const loadData = (link, watchedState) => {
-  watchedState.loadingProcess = {
-    ...watchedState.loadingProcess,
-    status: 'loading',
-    error: null,
-  };
+const loadData = (url, watchedState) => {
+  // eslint-disable-next-line no-param-reassign
+  watchedState.loadingProcess = { ...watchedState.loadingProcess, status: 'loading', error: null };
 
   return axios
-    .get(addProxy(link))
+    .get(addProxy(url))
     .then((response) => {
       const { feed, posts } = parse(response.data.contents);
-      watchedState.feeds.unshift({ ...feed, link, id: _.uniqueId() });
+      watchedState.feeds.unshift({ ...feed, link: url, id: _.uniqueId() });
       const { id } = watchedState.feeds[0];
       const postsWithId = posts.map((post) => ({
         ...post,
@@ -64,14 +53,12 @@ const loadData = (link, watchedState) => {
         id: _.uniqueId(),
       }));
       watchedState.posts.unshift(...postsWithId);
-      watchedState.loadingProcess = {
-        ...watchedState.loadingProcess,
-        status: 'success',
-        error: null,
-      };
+      // eslint-disable-next-line no-param-reassign
+      watchedState.loadingProcess = { ...watchedState.loadingProcess, status: 'success', error: null };
     })
     .catch((error) => {
       const updatedLoadingProcessState = { error: getErrorType(error), status: 'failed' };
+      // eslint-disable-next-line no-param-reassign
       watchedState.loadingProcess = {
         ...watchedState.loadingProcess,
         ...updatedLoadingProcessState,
@@ -99,13 +86,13 @@ const rssUpdater = (watchedState) => {
 
 const app = () => {
   const initialState = {
-    language: '',
+    language: DEFAULT_LANGUAGE,
     form: {
       isValidate: false,
       error: null,
     },
     loadingProcess: {
-      status: 'idle',
+      status: 'success',
       error: null,
     },
     ui: {
@@ -143,26 +130,27 @@ const app = () => {
   const i18nextInstance = i18next.createInstance();
   i18nextInstance
     .init({
-      lng: DEFAULT_LANGUAGE,
+      lng: initialState.language,
       resources,
     })
     .then(() => {
       yup.setLocale(localeConfig);
       const watchedState = watch(elements, initialState, i18nextInstance);
 
-      watchedState.language = DEFAULT_LANGUAGE;
+      watchedState.language = i18nextInstance.changeLanguage();
       rssUpdater(watchedState);
 
       elements.form.addEventListener('submit', (event) => {
         event.preventDefault();
         const formData = new FormData(event.target);
-        const link = formData.get(elements.input.name);
-        validate(link, watchedState)
+        const url = formData.get(elements.input.name);
+        const urls = watchedState.feeds.map((feed) => feed.link);
+        validate(url, urls)
           .then(() => {
             const updatedFormState = { isValidate: true, error: null };
             watchedState.form = { ...watchedState.form, ...updatedFormState };
 
-            loadData(link, watchedState);
+            loadData(url, watchedState);
           })
           .catch((error) => {
             const updatedFormState = { isValidate: false, error: error.message };
@@ -175,12 +163,6 @@ const app = () => {
           .find((post) => post.id === event.target.dataset.id);
         watchedState.ui.openedPostId = id;
         watchedState.ui.readedPosts.add(id);
-      });
-
-      elements.modal.closeButtons.forEach((closeButton) => {
-        closeButton.addEventListener('click', () => {
-          watchedState.ui.openedPostId = null;
-        });
       });
     });
 };
