@@ -10,7 +10,7 @@ RSS aggregator is a service for aggregating RSS feeds, with which it is convenie
 ## Installation:
 1. Create clone of the repository
 ```
-git clone git@github.com:leksandrFo/frontend-project-11.git
+git clone git@github.com:leksandrFo/RSS-aggregator.git
 ```
 2. Navigate to the repository you just cloned
 ```
